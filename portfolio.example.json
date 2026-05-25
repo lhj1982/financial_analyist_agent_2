@@ -1,0 +1,10 @@
+{
+  "positions": [
+    {"ticker": "AMZN", "buy_price": xxx.xx, "shares": x, "category": "stock"},
+    
+    {"ticker": "AVANZA-GLOBAL", "value_sek": xxx, "category": "fund"},
+    
+    {"ticker": "SEMI.DE", "buy_price": xxx.xx, "shares": x, "category": "etf"}
+  ],
+  "cash": 0
+}
