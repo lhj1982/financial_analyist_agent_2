@@ -36,6 +36,16 @@ cp portfolio.example.json portfolio.json
 # Edit portfolio.json
 ```
 
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `OPENAI_API_KEY` | ✅ Yes | — | Your OpenAI API key |
+| `OPENAI_MODEL` | No | `gpt-4o` | Model to use (`gpt-4o`, `o1`, `o3-mini`, etc.) |
+| `DATA_CACHE_TTL` | No | `300` | Market data cache duration in seconds |
+
+All other data sources (yfinance, CNN Fear & Greed) require no API keys.
+
 ## Usage
 
 ```bash
@@ -66,7 +76,7 @@ python -m src.main analyze --portfolio path/to/other.json
 └── src/
     ├── __init__.py
     ├── config.py          # Env vars, constants
-    ├── data_sources.py    # yfinance, CNN F&G, FRED data fetchers
+    ├── data_sources.py    # yfinance + CNN F&G data fetchers
     ├── regime.py          # 5-scenario classifier (deterministic rules)
     ├── portfolio.py       # Portfolio analyzer
     ├── tools.py           # OpenAI function-calling tool definitions

@@ -12,7 +12,6 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o")
-FRED_API_KEY: str = os.getenv("FRED_API_KEY", "")
 DATA_CACHE_TTL: int = int(os.getenv("DATA_CACHE_TTL", "300"))
 
 DEFAULT_PORTFOLIO_PATH: Path = PROJECT_ROOT / "portfolio.json"
