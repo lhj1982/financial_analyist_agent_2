@@ -130,6 +130,29 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "get_stock_analysis",
+            "description": (
+                "Get comprehensive fundamentals, technicals, and analyst consensus "
+                "for a single stock. Use when the user asks whether to buy, add, or "
+                "invest in a specific ticker. Returns valuation (P/E, P/S, P/B), "
+                "growth (revenue/earnings YoY), quality (margins, ROE, debt/equity), "
+                "technicals (MA50/200, RSI-14, momentum), and analyst target/upside."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ticker": {
+                        "type": "string",
+                        "description": "Yahoo Finance ticker symbol (e.g. AAPL, NVDA, MSFT).",
+                    }
+                },
+                "required": ["ticker"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "regime_to_ticker_suggestions",
             "description": (
                 "Given a classified regime, return suggested ticker buckets "
@@ -170,8 +193,25 @@ DISPATCH: dict[str, Callable[..., Any]] = {
     "get_full_market_snapshot": data_sources.get_full_market_snapshot,
     "classify_market_regime": _classify_market_regime,
     "get_ticker_quote": data_sources.get_ticker_quote,
+    "get_stock_analysis": data_sources.get_stock_analysis,
     "regime_to_ticker_suggestions": _regime_to_ticker_suggestions,
 }
+
+
+PORTFOLIO_TOOLS = [
+    t for t in TOOLS
+    if t["function"]["name"] not in {"get_stock_analysis"}
+]
+
+STOCK_TOOLS = [
+    t for t in TOOLS
+    if t["function"]["name"] in {
+        "get_full_market_snapshot",
+        "classify_market_regime",
+        "get_stock_analysis",
+        "get_ticker_quote",
+    }
+]
 
 
 def dispatch_tool(name: str, arguments_json: str | dict) -> str:

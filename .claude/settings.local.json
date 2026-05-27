@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 -m py_compile src/__init__.py src/config.py src/data_sources.py src/regime.py src/portfolio.py src/tools.py src/agent.py src/main.py)"
+      "Bash(python3 -m py_compile src/__init__.py src/config.py src/data_sources.py src/regime.py src/portfolio.py src/tools.py src/agent.py src/main.py)",
+      "Bash(.venv/bin/python -c ' *)",
+      "Bash(.venv/bin/python -c \"from src.agent import run_agent; print\\('orchestrator import OK'\\)\")"
     ]
   }
 }

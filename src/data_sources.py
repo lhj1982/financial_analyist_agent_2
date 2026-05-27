@@ -259,6 +259,113 @@ def get_ticker_quote(ticker: str) -> dict:
     return _cached(f"quote:{ticker}", fetch)
 
 
+def _fmt_market_cap(raw_usd: float) -> str:
+    """Format a raw dollar market cap into a human-readable string (e.g. '$1.01T')."""
+    if raw_usd >= 1e12:
+        return f"${raw_usd / 1e12:.2f}T"
+    if raw_usd >= 1e9:
+        return f"${raw_usd / 1e9:.1f}B"
+    return f"${raw_usd / 1e6:.1f}M"
+
+
+def get_stock_analysis(ticker: str) -> dict:
+    """Fundamentals, technicals, and analyst consensus for a single ticker."""
+    def fetch():
+        try:
+            t = yf.Ticker(ticker)
+            info = t.info
+            hist = t.history(period="1y", auto_adjust=True)
+            if hist.empty:
+                return {"ticker": ticker, "error": "no price history"}
+
+            closes = hist["Close"]
+
+            # Prefer fast_info.last_price (real-time) over history close
+            try:
+                last = float(t.fast_info.last_price)
+            except Exception:
+                last = float(closes.iloc[-1])
+
+            high_52w = float(closes.max())
+            low_52w = float(closes.min())
+
+            ma50 = float(closes.rolling(50).mean().iloc[-1]) if len(closes) >= 50 else None
+            ma200 = float(closes.rolling(200).mean().iloc[-1]) if len(closes) >= 200 else None
+
+            delta = closes.diff()
+            gain = delta.clip(lower=0).rolling(14).mean()
+            loss = (-delta.clip(upper=0)).rolling(14).mean()
+            rs = gain.iloc[-1] / loss.iloc[-1] if loss.iloc[-1] != 0 else None
+            rsi = round(100 - 100 / (1 + rs), 2) if rs is not None else None
+
+            avg_vol_20d = (
+                float(hist["Volume"].rolling(20).mean().iloc[-1])
+                if len(hist) >= 20 else None
+            )
+
+            # Market cap: fast_info is more reliable than info["marketCap"]
+            try:
+                market_cap_raw = float(t.fast_info.market_cap)
+            except Exception:
+                market_cap_raw = float(info.get("marketCap") or 0) or None
+
+            # Compute P/E directly from EPS — avoids stale/mismatched info["trailingPE"]
+            trailing_eps = info.get("trailingEps")
+            forward_eps = info.get("forwardEps")
+            pe_trailing = round(last / trailing_eps, 2) if trailing_eps and trailing_eps > 0 else None
+            pe_forward = round(last / forward_eps, 2) if forward_eps and forward_eps > 0 else None
+
+            target = info.get("targetMeanPrice")
+            return {
+                "ticker": ticker.upper(),
+                "name": info.get("shortName") or info.get("longName"),
+                "sector": info.get("sector"),
+                "industry": info.get("industry"),
+                "market_cap": _fmt_market_cap(market_cap_raw) if market_cap_raw else None,
+                "market_cap_usd": round(market_cap_raw, 0) if market_cap_raw else None,
+                "beta": info.get("beta"),
+                # Valuation — P/E computed from EPS so it's always price-consistent
+                "pe_trailing": pe_trailing,
+                "pe_forward": pe_forward,
+                "trailing_eps": round(trailing_eps, 2) if trailing_eps else None,
+                "forward_eps": round(forward_eps, 2) if forward_eps else None,
+                "ps_ratio": round(info.get("priceToSalesTrailing12Months", 0), 2) if info.get("priceToSalesTrailing12Months") else None,
+                "pb_ratio": round(info.get("priceToBook", 0), 2) if info.get("priceToBook") else None,
+                # Growth & quality
+                "revenue_growth_yoy": info.get("revenueGrowth"),
+                "earnings_growth_yoy": info.get("earningsGrowth"),
+                "gross_margin": info.get("grossMargins"),
+                "operating_margin": info.get("operatingMargins"),
+                "net_margin": info.get("profitMargins"),
+                "roe": info.get("returnOnEquity"),
+                "debt_to_equity": info.get("debtToEquity"),
+                "free_cash_flow_bn": round(info.get("freeCashflow", 0) / 1e9, 2) if info.get("freeCashflow") else None,
+                # Price & technicals
+                "current_price": round(last, 2),
+                "high_52w": round(high_52w, 2),
+                "low_52w": round(low_52w, 2),
+                "drawdown_from_52w_high_pct": round((last / high_52w - 1) * 100, 2),
+                "ma50": round(ma50, 2) if ma50 else None,
+                "ma200": round(ma200, 2) if ma200 else None,
+                "price_vs_ma50_pct": round((last / ma50 - 1) * 100, 2) if ma50 else None,
+                "price_vs_ma200_pct": round((last / ma200 - 1) * 100, 2) if ma200 else None,
+                "rsi_14": rsi,
+                "momentum_5d_pct": _pct_change(ticker, 5),
+                "momentum_20d_pct": _pct_change(ticker, 20),
+                "momentum_60d_pct": _pct_change(ticker, 60),
+                "avg_volume_20d": int(avg_vol_20d) if avg_vol_20d else None,
+                # Analyst consensus
+                "analyst_recommendation": info.get("recommendationKey"),
+                "analyst_mean_rating": info.get("recommendationMean"),  # 1=Strong Buy … 5=Sell
+                "analyst_target_price": round(target, 2) if target else None,
+                "analyst_target_upside_pct": round((target / last - 1) * 100, 2) if target else None,
+                "analyst_count": info.get("numberOfAnalystOpinions"),
+            }
+        except Exception as e:
+            return {"ticker": ticker, "error": str(e)}
+    return _cached(f"analysis:{ticker.upper()}", fetch)
+
+
 def get_full_market_snapshot() -> dict:
     """One-shot — all key inputs the regime classifier needs."""
     return {
